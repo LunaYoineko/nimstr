@@ -28,3 +28,26 @@ type
     url*: string
     ws*: WebSocket
     connected*: bool
+    
+  RelayPool* = ref object
+    relays*: seq[RelayClient]
+    
+  UserProfile* = object
+    name*: string
+    about*: string
+    picture*: string
+    nip05*: string
+    banner*: string
+    website*: string
+    lightning_address*: string
+    rawJson*: JosnNode
+    
+  ReplyTarget* = object
+    eventId*: string
+    relayUrl*: string
+    authorPubkey*: string
+    
+  ThreadContext* = object
+    rootEventId*: string
+    replyEventId*: string
+    mentionedPubkeys*: seq[string]

@@ -1,2 +1,2 @@
-import nimstr/[types, crypto, client, bech32]
-export types, crypto, client, bech32
+import nimstr/[types, crypto, client, bech32, message, profile]
+export types, crypto, client, bech32, message, profile

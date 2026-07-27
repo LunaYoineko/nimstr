@@ -3,19 +3,6 @@ import ws
 import secp256k1
 import types, crypto
     
-proc newRelayClient*(url: string): RelayClient =
-  result = RelayClient(url: url, ws: nil, connected: false)
-  
-proc connect*(relay: RelayClient) {.async.} =
-  try:
-    relay.ws = await newWebSocket(relay.url)
-    relay.connected = true
-    echo "WebSocket connected successfully."
-  except CatchableError as e:
-    echo "Failed to connect WebSocket: ", e.msg
-    relay.ws = nil
-    relay.connected = false
-    
 proc sendEvent*(relay: RelayClient, seckeyHex: string, kind: int, tags: JsonNode, content: string): Future[bool] {.async.} =
   if not relay.connected or relay.ws == nil:
     return false
@@ -50,14 +37,46 @@ proc sendEvent*(relay: RelayClient, seckeyHex: string, kind: int, tags: JsonNode
     relay.connected = false
     return false
 
-proc sendTextNote*(relay: RelayClient, seckeyHex: string, content: string, extraTags: JsonNode = nil): Future[bool] {.async.} =
-  var tags = newJArray()
-  if extraTags != nil and extraTags.kind == JArray:
-      for t in extraTags:
-          tags.add(t)
-  return await relay.sendEvent(seckeyHex, 1, tags, content)
+proc sendEventAll*(pool: RelayPool, seckeyHex: string, kind: int, tags: JsonNode, content: string): Future[int] {.async.} =
+  var successCount = 0
+  for r in pool.relays:
+      if r.connected:
+          let ok = await r.sendEvent(seckeyHex, kind, tags, content)
+          if ok:
+              successCount += 1
+  return successCount
     
-proc subscription*(relay: RelayClient, subscriptionId: string, filter: NostrFilter) {.async.} =
+proc deleteEvent*(
+    relay: RelayClient,
+    seckeyHex: string,
+    eventIdHex: string,
+    reason: string = ""
+): Future[bool] {.async.} =
+  if not relay.connected or relay.ws == nil:
+      return false
+      
+  var tags = newJArray()
+  tags.add(%*[ "e", eventIdHex ])
+  
+  let content = reason
+  
+  return await relay.sendEvent(seckeyHex, 5, tags, content)
+    
+proc deleteEventAll*(
+    pool: RelayPool,
+    seckeyHex: string,
+    eventIdHex: string,
+    reason: string = ""
+): Future[int] {.async.} =
+  var successCount = 0
+  for r in pool.relays:
+      if r.connected:
+          let ok = await r.deleteEvent(seckeyHex, eventIdHex, reason)
+          if ok:
+              successCount += 1
+  return successCount
+  
+proc subscribe*(relay: RelayClient, subscriptionId: string, filter: NostrFilter) {.async.} =
   if not relay.connected or relay.ws == nil: return
   
   var fObj = %*{}
@@ -73,6 +92,11 @@ proc subscription*(relay: RelayClient, subscriptionId: string, filter: NostrFilt
     await relay.ws.send($reqMsg)
   except CatchableError:
     relay.connected = false
+
+proc subscribeAll*(pool: RelayPool, subscriptionId: string, filter: NostrFilter) {.async.} =
+  for r in pool.relays:
+      if r.connected:
+          await r.subscribe(subscriptionId, filter)
     
 proc closeSubscription*(relay: RelayClient, subscriptionId: string) {.async.} =
   if not relay.connected or relay.ws == nil: return
@@ -80,12 +104,10 @@ proc closeSubscription*(relay: RelayClient, subscriptionId: string) {.async.} =
   try:
     await relay.ws.send($closeMsg)
   except CatchableError:
-    relay.connected = false    
-
-proc close*(relay: RelayClient) {.async.} =
-  if relay.ws != nil:
-    try:
-      relay.ws.close()
-    except CatchableError:
-      discard
     relay.connected = false
+    
+proc closeSubscriptionAll*(pool: RelayPool, subscriptionId: string) {.async.} =
+  for r in pool.relays:
+      if r.connected:
+          await r.closeSubscription(subscriptionId)
+
