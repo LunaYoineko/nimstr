@@ -1,4 +1,5 @@
 import ws
+import json
 
 type
   NostrEvent* = object
@@ -40,7 +41,7 @@ type
     banner*: string
     website*: string
     lightning_address*: string
-    rawJson*: JosnNode
+    rawJson*: JsonNode
     
   ReplyTarget* = object
     eventId*: string

@@ -12,6 +12,13 @@ proc sendTextNote*(
       for t in extraTags:
           tags.add(t)
   return await relay.sendEvent(seckeyHex, 1, tags, content)
+
+proc sendTextNoteAll*(pool: RelayPool, seckeyHex: string, content: string, extraTags: JsonNode = nil): Future[int] {.async.} =
+  var tags = newJArray()
+  if extraTags != nil and extraTags.kind == JArray:
+      for t in extraTags:
+          tags.add(t)
+  return await pool.sendEventAll(seckeyHex, 1, tags, content)
   
 proc sendReply*(
   relay: RelayClient, 

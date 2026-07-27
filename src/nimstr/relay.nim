@@ -1,4 +1,5 @@
 import std/[asyncdispatch, json]
+import ws
 import types, client
 
 proc newRelayClient*(url: string): RelayClient =
@@ -37,4 +38,4 @@ proc close*(relay: RelayClient) {.async.} =
       
 proc closeAll*(pool: RelayPool) {.async.} =
   for r in pool.relays:
-      r.close()
+      await r.close()
