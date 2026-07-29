@@ -230,6 +230,21 @@ let sig = signEventId(seckeyHex, eventIdHex)
 let profileOpt = parseUserProfile(rawJsonString)
 ```
 
+## Examples
+
+The `examples/` directory contains sample programs:
+
+| File | Description |
+|---|---|
+| `basic.nim` | Key generation, relay connection, sending text notes, subscribing and receiving events |
+| `reply_bot.nim` | Event monitoring bot that auto-replies |
+
+Run an example:
+
+```bash
+nim c -r examples/basic.nim
+```
+
 ## Dependencies
 
 - `nim >= 2.0.0`

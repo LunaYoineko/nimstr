@@ -230,6 +230,21 @@ let sig = signEventId(seckeyHex, eventIdHex)
 let profileOpt = parseUserProfile(rawJsonString)
 ```
 
+## サンプル
+
+`examples/` ディレクトリにサンプルがあります:
+
+| ファイル | 説明 |
+|---|---|
+| `basic.nim` | 鍵生成、リレー接続、テキストノート送信、イベント購読・受信の基本操作 |
+| `reply_bot.nim` | イベントを監視して自動返信するボット |
+
+実行方法:
+
+```bash
+nim c -r examples/basic.nim
+```
+
 ## 依存関係
 
 - `nim >= 2.0.0`
