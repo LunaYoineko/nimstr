@@ -20,7 +20,7 @@ mkdir myapp && cd myapp
 nimble init
 
 # 2. Install nimstr
-nimble install nimstr
+nimble install https://github.com/LunaYoineko/nimstr
 
 # 3. Add dependency to your .nimble file
 # Add the following to the dependencies section of myapp.nimble:
