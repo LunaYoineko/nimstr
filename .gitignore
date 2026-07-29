@@ -1,7 +1,3 @@
-/examples/send_text
-/examples/get_profile_test
-/examples/get_profile_test.nim
-/examples
 /tests
 config.nims
 nimble.paths
