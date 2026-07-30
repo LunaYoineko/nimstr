@@ -8,6 +8,7 @@ proc parseUserProfile*(contentStr: string): Option[UserProfile] =
     profile.rawJson = j
     
     if j.hasKey("name") and j["name"].kind == JString: profile.name = j["name"].getStr()
+    if j.hasKey("display_name") and j["display_name"].kind == JString: profile.display_name = j["display_name"].getStr()
     if j.hasKey("about") and j["about"].kind == JString: profile.about = j["about"].getStr()
     if j.hasKey("picture") and j["picture"].kind == JString: profile.picture = j["picture"].getStr()
     if j.hasKey("nip05") and j["nip05"].kind == JString: profile.nip05 = j["nip05"].getStr()
@@ -33,6 +34,7 @@ proc sendProfile*(relay: RelayClient, seckeyHex: string, profile: UserProfile): 
 
   var profileJson = %*{}
   if profile.name != "": profileJson["name"] = %* profile.name
+  if profile.name != "": profileJson["display_name"] = %*profile.display_name
   if profile.about != "": profileJson["about"] = %* profile.about
   if profile.picture != "": profileJson["picture"] = %* profile.picture
   if profile.nip05 != "": profileJson["nip05"] = %* profile.nip05

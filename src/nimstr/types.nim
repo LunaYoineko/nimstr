@@ -35,6 +35,7 @@ type
     
   UserProfile* = object
     name*: string
+    display_name: string
     about*: string
     picture*: string
     nip05*: string
