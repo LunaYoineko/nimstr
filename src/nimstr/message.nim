@@ -44,6 +44,30 @@ proc sendReply*(
 
   return await relay.sendEvent(seckeyHex, 1, tags, content)
 
+proc sendRootReply*(
+    relay: RelayClient,
+    seckeyHex: string,
+    content: string,
+    replyTo: ReplyTarget,
+    extraTags: JsonNode = nil
+): Future[bool] {.async.} =
+    if not relay.connected or relay.ws == nil:
+        return false
+        
+    var tags = newJArray()
+    
+    var replyTag = %*[ "e", replyTo.eventId, replyTo.relayUrl, "root" ]
+    tags.add(replyTag)
+    
+    if replyTo.authorPubkey != "":
+        tags.add(%*[ "p", replyTo.authorPubkey ])
+        
+    if extraTags != nil and extraTags.kind == JArray:
+        for t in extraTags:
+            tags.add(t)
+            
+    return await relay.sendEvent(seckeyHex, 1, tags, content)
+  
 proc sendReplyAll*(
     pool: RelayPool,
     seckeyHex: string,
@@ -70,6 +94,33 @@ proc sendReplyAll*(
           if ok:
               successCount += 1
   return successCount
+
+proc sendRootReplyAll*(
+    pool: RelayPool,
+    seckeyHex: string,
+    content: string,
+    replyTo: ReplyTarget,
+    extraTags: JsonNode = nil
+): Future[int] {.async.} =
+    var tags = newJArray()
+    
+    var replyTag = %*[ "e", replyTo.eventId, replyTo.relayUrl, "root" ]
+    tags.add(replyTag)
+    
+    if replyTo.authorPubkey != "":
+        tags.add(%*[ "p", replyTo.authorPubkey ])
+        
+    if extraTags != nil and extraTags.kind == JArray:
+        for t in extraTags:
+            tags.add(t)
+            
+    var successCount = 0
+    for r in pool.relays:
+        if r.connected:
+            let ok = await r.sendEvent(seckeyHex, 1, tags, content)
+            if ok:
+                successCount += 1
+    return successCount
   
 proc parseThreadContext*(eventTags: JsonNode): ThreadContext =
   var ctx = ThreadContext(rootEventId: "", replyEventId: "", mentionedPubkeys: @[])
