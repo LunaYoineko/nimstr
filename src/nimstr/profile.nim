@@ -1,4 +1,4 @@
-import std/[asyncdispatch, json, options]
+import std/[asyncdispatch, json, options, times, random]
 import types, client
 
 proc parseUserProfile*(contentStr: string): Option[UserProfile] =
@@ -47,3 +47,43 @@ proc sendProfile*(relay: RelayClient, seckeyHex: string, profile: UserProfile): 
   let tags = newJArray()
 
   return await relay.sendEvent(seckeyHex, kind, tags, contentStr)
+  
+proc getProfile*(relay: RelayClient, pubkeyHex: string, timeoutMs: int = 3000): Future[Option[UserProfile]] {.async.} =
+    if not relay.connected or relay.ws == nil:
+        return none(UserProfile)
+        
+    let subscriptionId = "prof_fetch_" & $int(rand(100000))
+    
+    try:
+        await relay.fetchProfile(subscriptionId, pubkeyHex)
+        
+        let startTime = epochTime()
+        while relay.connected:
+            let elapsed = (epochTime() - startTime) * 1000
+            if elapsed >= float(timeoutMs):
+                break
+                
+            let msgFut = relay.ws.receiveStrPacket()
+            if await withTimeout(msgFut, 200):
+                let raw = msgFut.read
+                if raw.len > 0 and raw[0] == '[':
+                    try:
+                        let j = parseJson(raw)
+                        if j.kind == JArray and j.len >= 2 and j[0].getStr() == "EVENT":
+                            let evJson = if j[1].kind == JObject: j[1] else: (if j.len >= 3 and j[2].kind == JObject: j[2] else: newJNull())
+                            if evJson.hasKey("pubkey") and evJson["pubkey"].getStr() == pubkeyHex:
+                                if evJson.hasKey("content"):
+                                    let profileOpt = parseUserProfile(evJson["content"].getStr())
+                                    await relay.closeSubscription(subscriptionId)
+                                    return profileOpt
+                    except CatchableError:
+                        discard
+                        
+        await relay.closeSubscription(subscriptionId)
+        return none(UserProfile)
+    except CatchableError:
+        try:
+            await relay.closeSubscription(subscriptionId)
+        except CatchableError:
+            discard
+        return none(UserProfile)
