@@ -1,4 +1,5 @@
 import std/[asyncdispatch, json, options, times, random]
+import ws
 import types, client
 
 proc parseUserProfile*(contentStr: string): Option[UserProfile] =
