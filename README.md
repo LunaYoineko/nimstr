@@ -100,11 +100,26 @@ await pool.connectAll()
 
 ### イベント操作
 
+#### 低レベル送信 (kind 指定)
+
+任意の kind のイベントを送信できます。タグは JSON 配列で指定します。
+
+```nim
+# 単一リレーへ送信
+let ok = await relay.sendEvent(seckeyHex, 1, %*[["t", "nostr"]], "Hello!")
+
+# 全リレーへブロードキャスト
+let count = await pool.sendEventAll(seckeyHex, 1, %*[["t", "nostr"]], "Hello!")
+```
+
 #### テキストノート (kind 1)
 
 ```nim
 # 単一リレーへ送信
 let ok = await relay.sendTextNote(seckeyHex, "Hello, Nostr!")
+
+# 追加タグ付き
+let ok = await relay.sendTextNote(seckeyHex, "Hello, Nostr!", %*[["t", "nostr"]])
 
 # 全リレーへブロードキャスト
 let count = await pool.sendTextNoteAll(seckeyHex, "Hello, Nostr!")
@@ -119,16 +134,31 @@ let replyTarget = ReplyTarget(
   authorPubkey: "author-pubkey-hex"
 )
 
+# "reply" マーカー付き返信
 let ok = await relay.sendReply(seckeyHex, "Reply text", replyTarget)
+
+# "root" マーカー付き返信
+let ok = await relay.sendRootReply(seckeyHex, "Root reply", replyTarget)
+
+# 全リレーへブロードキャスト
+let count = await pool.sendReplyAll(seckeyHex, "Reply text", replyTarget)
+let count = await pool.sendRootReplyAll(seckeyHex, "Root reply", replyTarget)
 ```
+
+`sendReply`・`sendRootReply`・`sendReplyAll`・`sendRootReplyAll` には `extraTags: JsonNode = nil` で追加タグを渡せます。
 
 #### プロフィール更新 (kind 0)
 
 ```nim
 var profile = UserProfile(
   name: "Alice",
+  display_name: "Alice Nakamoto",
   about: "Nim lover",
-  picture: "https://example.com/avatar.png"
+  picture: "https://example.com/avatar.png",
+  nip05: "alice@example.com",
+  banner: "https://example.com/banner.png",
+  website: "https://example.com",
+  lightning_address: "alice@getalby.com"
 )
 let ok = await relay.sendProfile(seckeyHex, profile)
 ```
@@ -136,13 +166,23 @@ let ok = await relay.sendProfile(seckeyHex, profile)
 #### プロフィール取得
 
 ```nim
+# 購読の開始のみ行う
 await relay.fetchProfile("sub-id", pubkeyHex)
+
+# イベント受信を待って直接取得 (Option[UserProfile] を返す)
+let profileOpt = await relay.getProfile(pubkeyHex, timeoutMs = 5000)
+if profileOpt.isSome:
+  echo profileOpt.get().name
 ```
 
 #### イベント削除 (kind 5)
 
 ```nim
+# 単一リレー
 let ok = await relay.deleteEvent(seckeyHex, "event-id-to-delete", "reason (optional)")
+
+# 全リレー
+let count = await pool.deleteEventAll(seckeyHex, "event-id-to-delete", "reason (optional)")
 ```
 
 ### サブスクリプション
@@ -157,8 +197,14 @@ var filter = NostrFilter(
 # 購読開始
 await relay.subscribe("my-sub", filter)
 
+# 全リレーで購読開始
+await pool.subscribeAll("my-sub", filter)
+
 # 購読終了
 await relay.closeSubscription("my-sub")
+
+# 全リレーで購読終了
+await pool.closeSubscriptionAll("my-sub")
 ```
 
 `NostrFilter` のフィールド:
@@ -198,6 +244,19 @@ NostrKeypair = object
 ReplyTarget = object
   eventId*, relayUrl*, authorPubkey*: string
 ```
+
+#### UserProfile
+
+```nim
+UserProfile = object
+  name*, display_name*: string
+  about*, picture*: string
+  nip05*, banner*, website*: string
+  lightning_address*: string
+  rawJson*: JsonNode
+```
+
+`parseUserProfile(contentStr: string)` で kind 0 イベントのコンテンツ JSON から `Option[UserProfile]` をパースできます。
 
 #### ThreadContext
 

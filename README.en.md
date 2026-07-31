@@ -100,11 +100,26 @@ await pool.connectAll()
 
 ### Events
 
+#### Low-level Sending (any kind)
+
+Send an event of any kind. Tags are provided as a JSON array.
+
+```nim
+# Send to a single relay
+let ok = await relay.sendEvent(seckeyHex, 1, %*[["t", "nostr"]], "Hello!")
+
+# Broadcast to all relays
+let count = await pool.sendEventAll(seckeyHex, 1, %*[["t", "nostr"]], "Hello!")
+```
+
 #### Text Note (kind 1)
 
 ```nim
 # Send to a single relay
 let ok = await relay.sendTextNote(seckeyHex, "Hello, Nostr!")
+
+# With extra tags
+let ok = await relay.sendTextNote(seckeyHex, "Hello, Nostr!", %*[["t", "nostr"]])
 
 # Broadcast to all relays
 let count = await pool.sendTextNoteAll(seckeyHex, "Hello, Nostr!")
@@ -119,16 +134,31 @@ let replyTarget = ReplyTarget(
   authorPubkey: "author-pubkey-hex"
 )
 
+# Reply with the "reply" marker
 let ok = await relay.sendReply(seckeyHex, "Reply text", replyTarget)
+
+# Reply with the "root" marker
+let ok = await relay.sendRootReply(seckeyHex, "Root reply", replyTarget)
+
+# Broadcast to all relays
+let count = await pool.sendReplyAll(seckeyHex, "Reply text", replyTarget)
+let count = await pool.sendRootReplyAll(seckeyHex, "Root reply", replyTarget)
 ```
+
+`sendReply`, `sendRootReply`, `sendReplyAll`, and `sendRootReplyAll` accept extra tags via `extraTags: JsonNode = nil`.
 
 #### Profile Update (kind 0)
 
 ```nim
 var profile = UserProfile(
   name: "Alice",
+  display_name: "Alice Nakamoto",
   about: "Nim lover",
-  picture: "https://example.com/avatar.png"
+  picture: "https://example.com/avatar.png",
+  nip05: "alice@example.com",
+  banner: "https://example.com/banner.png",
+  website: "https://example.com",
+  lightning_address: "alice@getalby.com"
 )
 let ok = await relay.sendProfile(seckeyHex, profile)
 ```
@@ -136,13 +166,23 @@ let ok = await relay.sendProfile(seckeyHex, profile)
 #### Fetch Profile
 
 ```nim
+# Only start the subscription
 await relay.fetchProfile("sub-id", pubkeyHex)
+
+# Wait for the event and fetch it directly (returns Option[UserProfile])
+let profileOpt = await relay.getProfile(pubkeyHex, timeoutMs = 5000)
+if profileOpt.isSome:
+  echo profileOpt.get().name
 ```
 
 #### Delete Event (kind 5)
 
 ```nim
+# Single relay
 let ok = await relay.deleteEvent(seckeyHex, "event-id-to-delete", "reason (optional)")
+
+# All relays
+let count = await pool.deleteEventAll(seckeyHex, "event-id-to-delete", "reason (optional)")
 ```
 
 ### Subscriptions
@@ -157,8 +197,14 @@ var filter = NostrFilter(
 # Start subscription
 await relay.subscribe("my-sub", filter)
 
+# Start subscription on all relays
+await pool.subscribeAll("my-sub", filter)
+
 # Close subscription
 await relay.closeSubscription("my-sub")
+
+# Close subscription on all relays
+await pool.closeSubscriptionAll("my-sub")
 ```
 
 `NostrFilter` fields:
@@ -198,6 +244,19 @@ NostrKeypair = object
 ReplyTarget = object
   eventId*, relayUrl*, authorPubkey*: string
 ```
+
+#### UserProfile
+
+```nim
+UserProfile = object
+  name*, display_name*: string
+  about*, picture*: string
+  nip05*, banner*, website*: string
+  lightning_address*: string
+  rawJson*: JsonNode
+```
+
+Use `parseUserProfile(contentStr: string)` to parse the content JSON of a kind 0 event into an `Option[UserProfile]`.
 
 #### ThreadContext
 
